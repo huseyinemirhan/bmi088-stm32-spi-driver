@@ -31,11 +31,9 @@ BMI088_t imu;
 
 // Init gyroscope (default: ±2000 °/s, normal power mode)
 if (BMI088_InitGyro(&imu, &hspi1, GYRO_CS_GPIO_Port, GYRO_CS_Pin) != BMI088_GYRO_OK)
-    Error_Handler();
 
 // Init accelerometer (default: ±6g, 100 Hz ODR, normal bandwidth)
 if (BMI088_InitAccel(&imu, &hspi1, ACCEL_CS_GPIO_Port, ACCEL_CS_Pin) != BMI088_ACCEL_OK)
-    Error_Handler();
 
 // Read in loop
 BMI088_FloatData_t gyro, accel;

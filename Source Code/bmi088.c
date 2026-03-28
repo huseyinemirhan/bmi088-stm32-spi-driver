@@ -150,48 +150,50 @@ HAL_StatusTypeDef BMI088_ReadReg(BMI088_t *sensor, BMI088_SensorType sensorType,
 
 HAL_StatusTypeDef BMI088_ReadRegBurst(BMI088_t *sensor, BMI088_SensorType sensorType, uint8_t regAddr, int16_t *dest){
 
-    HAL_StatusTypeDef status;
-    uint8_t txData = regAddr | READ_OP;
-    uint8_t data[2];
-    GPIO_TypeDef *csPort;
-    uint16_t csPin;
+	HAL_StatusTypeDef status;
+	    uint8_t txData = regAddr | READ_OP;
+	    GPIO_TypeDef *csPort;
+	    uint16_t csPin;
 
-    if(sensorType == BMI088_GYRO){
-        csPort = sensor->gyroCSPort;
-        csPin  = sensor->gyroCSPin;
-    } else {
-        csPort = sensor->accelCSPort;
-        csPin  = sensor->accelCSPin;
-    }
+	    if(sensorType == BMI088_GYRO){
+	        csPort = sensor->gyroCSPort;
+	        csPin  = sensor->gyroCSPin;
+	    } else {
+	        csPort = sensor->accelCSPort;
+	        csPin  = sensor->accelCSPin;
+	    }
 
-    HAL_GPIO_WritePin(csPort, csPin, 0);
+	    HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_RESET);
 
-    status = HAL_SPI_Transmit(sensor->hspi, &txData, 1, 100);
-    if(status != HAL_OK){
-        HAL_GPIO_WritePin(csPort, csPin, 1);
-        return status;
-    }
+	    status = HAL_SPI_Transmit(sensor->hspi, &txData, 1, 100);
+	    if(status != HAL_OK){
+	        HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_SET);
+	        return status;
+	    }
 
-    if(sensorType == BMI088_ACCEL){
-        uint8_t rxBuff[3];
-        status = HAL_SPI_Receive(sensor->hspi, rxBuff, 3, 100);
-        if(status != HAL_OK){
-            HAL_GPIO_WritePin(csPort, csPin, 1);
-            return status;
-        }
-        *dest = (int16_t)((rxBuff[2] << 8) | rxBuff[1]);
-        HAL_GPIO_WritePin(csPort, csPin, 1);
-        return status;
-    }
+	    if(sensorType == BMI088_ACCEL || sensorType == BMI088_TEMP){
+	        uint8_t rxBuff[3];
+	        status = HAL_SPI_Receive(sensor->hspi, rxBuff, 3, 100);
+	        HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_SET);
 
-    status = HAL_SPI_Receive(sensor->hspi, data, 2, 100);
-    HAL_GPIO_WritePin(csPort, csPin, 1);
+	        if(status != HAL_OK) return status;
 
-    if(status == HAL_OK){
-        *dest = (int16_t)((data[1] << 8) | data[0]);
-    }
+	        if(sensorType == BMI088_TEMP) {
+	            int16_t rawTemp = (int16_t)((rxBuff[1] << 3) | (rxBuff[2] >> 5));
+	            if (rawTemp > 1023) rawTemp -= 2048;
+	            *dest = rawTemp;
+	        } else {
+	            *dest = (int16_t)((rxBuff[2] << 8) | rxBuff[1]);
+	        }
+	    }
+	    else {
+	        uint8_t data[2];
+	        status = HAL_SPI_Receive(sensor->hspi, data, 2, 100);
+	        HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_SET);
+	        if(status == HAL_OK) *dest = (int16_t)((data[1] << 8) | data[0]);
+	    }
 
-    return status;
+	    return status;
 }
 
 HAL_StatusTypeDef BMI088_WriteReg(BMI088_t *sensor, BMI088_SensorType sensorType, uint8_t regAddr, uint8_t regData){
@@ -395,7 +397,7 @@ BMI088_Status_t BMI088_SetBandwidthAccel(BMI088_t *sensor, BMI088_AccelBWP_t ban
     status = BMI088_ReadReg(sensor, BMI088_ACCEL, ACC_CONF_REG, &currentReg);
     if(status != HAL_OK) return BMI088_ACCEL_FAIL;
 
-    uint8_t correctReg = currentReg | ((uint8_t)bandwidth << 4);
+    uint8_t correctReg = (currentReg & ~0x70) | ((uint8_t)bandwidth << 4);
     status = BMI088_WriteReg(sensor, BMI088_ACCEL, ACC_CONF_REG, correctReg);
     if(status != HAL_OK) return BMI088_ACCEL_FAIL;
 
@@ -408,7 +410,7 @@ BMI088_Status_t BMI088_SetODRAccel(BMI088_t *sensor, BMI088_AccelODR_t odr){
     HAL_StatusTypeDef status = BMI088_ReadReg(sensor, BMI088_ACCEL, ACC_CONF_REG, &currentReg);
     if(status != HAL_OK) return BMI088_ACCEL_FAIL;
 
-    uint8_t correctReg = currentReg | ((uint8_t)odr);
+    uint8_t correctReg = (currentReg & ~0x0F) | ((uint8_t)odr);
     status = BMI088_WriteReg(sensor, BMI088_ACCEL, ACC_CONF_REG, correctReg);
     if(status != HAL_OK) return BMI088_ACCEL_FAIL;
 
@@ -575,4 +577,29 @@ BMI088_Status_t BMI088_ReadAccelXYZ_MG(BMI088_t *sensor, BMI088_FloatData_t *flo
 
     return BMI088_ACCEL_OK;
 }
+
+BMI088_Status_t BMI088_ReadTemp_LSB(BMI088_t *sensor, int16_t *dest){
+	BMI088_Status_t status;
+
+    status = BMI088_ReadRegBurst(sensor, BMI088_TEMP, TEMP_LSB_REG, dest);
+	if(status != BMI088_ACCEL_OK) return BMI088_ACCEL_FAIL;
+
+    return BMI088_ACCEL_OK;
+
+}
+
+
+BMI088_Status_t BMI088_ReadTemp_CELS(BMI088_t *sensor, float *dest){
+	BMI088_Status_t status;
+	int16_t raw;
+
+	status = BMI088_ReadTemp_LSB(sensor, &raw);
+	if(status != BMI088_ACCEL_OK) return BMI088_ACCEL_FAIL;
+
+	*dest = ((float)raw * 0.125)+23;
+
+	return BMI088_ACCEL_OK;
+}
+
+
 

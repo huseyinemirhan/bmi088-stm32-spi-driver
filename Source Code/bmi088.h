@@ -69,6 +69,8 @@
 #define ACC_PWR_CTRL_REG            0x7D
 #define ACC_SOFTRESET_REG           0x7E
 
+/* Enumerators */
+
 typedef enum {
     BMI088_GYRO_OK    = 0x01,
     BMI088_GYRO_FAIL  = 0x02,
@@ -133,7 +135,52 @@ typedef enum {
 typedef enum {
     BMI088_GYRO  = 0x01,
     BMI088_ACCEL = 0x02,
+	BMI088_TEMP = 0x03
 } BMI088_SensorType;
+
+/* --- Accel Interrupts --- */
+
+typedef enum {
+    BMI088_ACCEL_PIN_INT1 = 1,
+    BMI088_ACCEL_PIN_INT2 = 2
+} BMI088_AccelPin_t;
+
+typedef enum {
+    BMI088_ACCEL_INT_ACTIVE_LOW  = 0x00,
+    BMI088_ACCEL_INT_ACTIVE_HIGH = 0x01
+} BMI088_AccelIntLevel_t;
+
+typedef enum {
+    BMI088_ACCEL_INT_PUSH_PULL  = 0x00,
+    BMI088_ACCEL_INT_OPEN_DRAIN = 0x01
+} BMI088_AccelIntMode_t;
+
+typedef enum {
+    BMI088_ACC_INT_DRDY    = 0x04,
+    BMI088_ACC_INT_FIFO_WM = 0x02,
+    BMI088_ACC_INT_FIFO_FL = 0x01
+} BMI088_AccelIntType_t;
+
+/* --- Gyroscope Interrupts --- */
+
+typedef enum {
+    BMI088_GYRO_PIN_INT3 = 3,
+    BMI088_GYRO_PIN_INT4 = 4
+} BMI088_GyroPin_t;
+
+typedef enum {
+    BMI088_GYRO_INT_DRDY_EN = 0x80,
+    BMI088_GYRO_INT_FIFO_EN = 0x40
+} BMI088_GyroIntType_t;
+
+typedef enum {
+    BMI088_GYRO_INT_PUSH_PULL  = 0x00,
+    BMI088_GYRO_INT_OPEN_DRAIN = 0x01,
+    BMI088_GYRO_INT_ACTIVE_LOW  = 0x00,
+    BMI088_GYRO_INT_ACTIVE_HIGH = 0x01
+} BMI088_GyroPinStyle_t;
+
+/* Structs */
 
 typedef struct {
     int16_t x;
@@ -215,7 +262,7 @@ BMI088_Status_t BMI088_ReadAccelZ_MG(BMI088_t *sensor, float *dest);
 BMI088_Status_t BMI088_ReadAccelXYZ_MG(BMI088_t *sensor, BMI088_FloatData_t *floatData);
 
 /* Temperature Functions */
-BMI088_Status_t BMI088_ReadTemp_Raw(BMI088_t *sensor, int16_t *dest);
-BMI088_Status_t BMI088_ReadTemp_Celsius(BMI088_t *sensor, float *dest);
+BMI088_Status_t BMI088_ReadTemp_LSB(BMI088_t *sensor, int16_t *dest);
+BMI088_Status_t BMI088_ReadTemp_CELS(BMI088_t *sensor, float *dest);
 
 #endif /* INC_BMI088_H_ */
